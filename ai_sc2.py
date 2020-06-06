@@ -3,6 +3,8 @@ from sc2 import run_game, maps, Race, Difficulty
 from sc2.player import Bot, Computer
 from sc2.constants import COMMANDCENTER, SCV, SUPPLYDEPOT, REFINERY, BARRACKS, MARINE
 import random
+import cv2
+import numpy as np
 
 
 class PythonAI(sc2.BotAI):
@@ -26,7 +28,9 @@ class PythonAI(sc2.BotAI):
             ccs = self.units(COMMANDCENTER).ready
             if ccs.exists:
                 if self.can_afford(SUPPLYDEPOT):
-                    await self.build(SUPPLYDEPOT, near=ccs.first)
+                    await self.build(SUPPLYDEPOT, near=ccs.first.position.towards(
+                        self.game_info.map_center, 8
+                    ))
 
     async def build_refinerys(self):
         for cc in self.units(COMMANDCENTER).ready:
@@ -54,13 +58,17 @@ class PythonAI(sc2.BotAI):
         if self.can_afford(COMMANDCENTER):
             await self.expand_now()
 
+    def select_target(self):
+        if self.known_enemy_structures.exists:
+            return random.choice(self.known_enemy_structures).position
+
     async def attack(self):
         if self.units(MARINE).amount < 2:
             for marine in self.units(MARINE).idle:
                 await self.do(marine.move(self.enemy_start_locations[0]))
         elif self.units(MARINE).amount > 10:
             for marine in self.units(MARINE).idle:
-                await self.do(marine.attack(random.choice(self.known_enemy_units)))
+                await self.do(marine.attack(self.select_target()))
 
 
 run_game(maps.get("AbyssalReefLE"),

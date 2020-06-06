@@ -2,8 +2,17 @@
 import sc2
 from sc2 import run_game, maps, Race, Difficulty
 from sc2.player import Bot, Computer
-from sc2.constants import COMMANDCENTER, SCV, SUPPLYDEPOT, REFINERY, BARRACKS, MARINE
 import random
+from sc2.constants import (
+    COMMANDCENTER,
+    SCV,
+    SUPPLYDEPOT,
+    REFINERY,
+    BARRACKS,
+    MARINE,
+)
+import cv2
+import numpy as np
 
 
 class PythonAI(sc2.BotAI):
@@ -16,6 +25,18 @@ class PythonAI(sc2.BotAI):
         await self.build_marines()
         await self.expand()
         await self.attack()
+        await self.alpha()
+
+    async def alpha(self):
+        game_data = np.zeros((self.game_info.map_size[1], self.game_info.map_size[0], 3), np.uint8)
+        for cc in self.units(COMMANDCENTER):
+            cc_pos = cc.position
+            cv2.circle(game_data, (int(cc_pos[0]), int(cc_pos[1])), 10, (0, 255, 0), -1)
+
+        flipped = cv2.flip(game_data, 0)
+        resized = cv2.resize(flipped, dsize=None, fx=2, fy=2)
+        cv2.imshow('Alpha', resized)
+        cv2.waitKey(1)
 
     async def build_workers(self):
         for cc in self.units(COMMANDCENTER).ready.noqueue:
@@ -27,7 +48,9 @@ class PythonAI(sc2.BotAI):
             ccs = self.units(COMMANDCENTER).ready
             if ccs.exists:
                 if self.can_afford(SUPPLYDEPOT):
-                    await self.build(SUPPLYDEPOT, near=ccs.first)
+                    await self.build(SUPPLYDEPOT,
+                                     near=ccs.first.position.towards(
+                                         self.game_info.map_center, 8))
 
     async def build_refinerys(self):
         for cc in self.units(COMMANDCENTER).ready:
@@ -40,7 +63,7 @@ class PythonAI(sc2.BotAI):
                             await self.do(worker.build(REFINERY, gas))
 
     async def build_barracks(self):
-        if self.units(SUPPLYDEPOT).ready.exists:
+        if self.units(SUPPLYDEPOT).ready:
             sd = self.units(SUPPLYDEPOT).ready.random
             if self.can_afford(BARRACKS):
                 if not self.already_pending(BARRACKS):
@@ -55,14 +78,17 @@ class PythonAI(sc2.BotAI):
         if self.can_afford(COMMANDCENTER):
             await self.expand_now()
 
+    def select_target(self):
+        if self.known_enemy_structures.exists:
+            return random.choice(self.known_enemy_structures).position
+
     async def attack(self):
         if self.units(MARINE).amount < 2:
             for marine in self.units(MARINE).idle:
                 await self.do(marine.move(self.enemy_start_locations[0]))
         elif self.units(MARINE).amount > 9:
-            if len(self.known_enemy_units) > 0:
-                for marine in self.units(MARINE).idle:
-                    await self.do(marine.attack(random.choice(self.known_enemy_units)))
+            for marine in self.units(MARINE).idle:
+                await self.do(marine.attack(self.select_target()))
 
 
 run_game(maps.get("AbyssalReefLE"),
