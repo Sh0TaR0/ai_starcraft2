@@ -28,10 +28,14 @@ class PythonAI(sc2.BotAI):
         await self.alpha()
 
     async def alpha(self):
-        game_data = np.zeros((self.game_info.map_size[1], self.game_info.map_size[0], 3), np.uint8)
+        game_data = np.zeros((
+            self.game_info.map_size[1],
+            self.game_info.map_size[0], 3), np.uint8)
         for cc in self.units(COMMANDCENTER):
             cc_pos = cc.position
-            cv2.circle(game_data, (int(cc_pos[0]), int(cc_pos[1])), 10, (0, 255, 0), -1)
+            cv2.circle(game_data,
+                       (int(cc_pos[0]), int(cc_pos[1])),
+                       10, (0, 255, 0), -1)
 
         flipped = cv2.flip(game_data, 0)
         resized = cv2.resize(flipped, dsize=None, fx=2, fy=2)
