@@ -10,6 +10,7 @@ from sc2.constants import (
     REFINERY,
     BARRACKS,
     MARINE,
+
 )
 import cv2
 import numpy as np
@@ -31,11 +32,46 @@ class PythonAI(sc2.BotAI):
         game_data = np.zeros((
             self.game_info.map_size[1],
             self.game_info.map_size[0], 3), np.uint8)
-        for cc in self.units(COMMANDCENTER):
-            cc_pos = cc.position
-            cv2.circle(game_data,
-                       (int(cc_pos[0]), int(cc_pos[1])),
-                       10, (0, 255, 0), -1)
+
+        draw_dict = {
+            COMMANDCENTER: [15, (0, 255, 0)],
+            SUPPLYDEPOT: [3, (20, 235, 0)],
+            SCV: [1, (55, 200, 0)],
+            # ASSIMILATOR: [2, (55, 200, 0)],
+            BARRACKS: [3, (200, 100, 0)],
+            # CYBERNETICSCORE: [3, (150, 150, 0)],
+            # STARGATE: [5, (255, 0, 0)],
+            # ROBOTICSFACILITY: [5, (215, 155, 0)],
+            MARINE: [3, (255, 100, 0)],
+            # OBSERVER: [3, (255, 255, 255)],
+        }
+
+        for unit_type in draw_dict:
+            for unit in self.units(unit_type).ready:
+                pos = unit.position
+                cv2.circle(game_data, (int(pos[0]), int(pos[1])),
+                           draw_dict[unit_type][0], draw_dict[unit_type][1], -1)
+
+        main_base_names = ["nexus", "supplydepot", "hatchery"]
+        for enemy_building in self.known_enemy_structures:
+            pos = enemy_building.position
+            if enemy_building.name.lower() not in main_base_names:
+                cv2.circle(game_data, (int(pos[0]), int(pos[1])), 5, (200, 50, 212), -1)
+        for enemy_building in self.known_enemy_structures:
+            pos = enemy_building.position
+            if enemy_building.name.lower() in main_base_names:
+                cv2.circle(game_data, (int(pos[0]), int(pos[1])), 15, (0, 0, 255), -1)
+
+        for enemy_unit in self.known_enemy_units:
+            if not enemy_unit.is_structure:
+                worker_names = ["probe",
+                                "scv",
+                                "drone"]
+                pos = enemy_unit.position
+                if enemy_unit.name.lower() in worker_names:
+                    cv2.circle(game_data, (int(pos[0]), int(pos[1])), 1, (55, 0, 155), -1)
+                else:
+                    cv2.circle(game_data, (int(pos[0]), int(pos[1])), 3, (50, 0, 215), -1)
 
         flipped = cv2.flip(game_data, 0)
         resized = cv2.resize(flipped, dsize=None, fx=2, fy=2)
@@ -90,7 +126,7 @@ class PythonAI(sc2.BotAI):
         if self.units(MARINE).amount < 2:
             for marine in self.units(MARINE).idle:
                 await self.do(marine.move(self.enemy_start_locations[0]))
-        elif self.units(MARINE).amount > 9:
+        elif self.units(MARINE).amount > 14:
             for marine in self.units(MARINE).idle:
                 await self.do(marine.attack(self.select_target()))
 
